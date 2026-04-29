@@ -1,0 +1,344 @@
+openapi: 3.0.3
+info:
+  title: API управления ипотечными сделками
+  version: 1.0.0
+  description: Спецификация для инициирования и обработки ипотечных заявок (HATEOAS, async, idempotency)
+
+tags:
+  - name: Mortgage
+    description: Ипотечные заявки
+
+paths:
+  /applications:
+    post:
+      tags: [Mortgage]
+      summary: Инициирование обработки ипотечной заявки
+      description: |
+        Клиент отправляет заполненную анкету. Сервер принимает заявку в асинхронную обработку 
+        и возвращает ID для последующего polling статуса.
+      operationId: createApplication
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          description: Уникальный ключ клиента для предотвращения дублирующих запросов
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+      responses:
+        '202':
+          description: Заявка принята в обработку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Ошибка валидации полей или структуры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Заявка с таким Idempotency-Key уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Превышен лимит запросов (Rate Limit)
+          headers:
+            Retry-After:
+              description: Секунд до следующей попытки
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен или превышен лимит ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /applications/{applicationId}/status:
+    get:
+      tags: [Mortgage]
+      summary: Получение статуса заявки (Polling / Long-polling)
+      description: |
+        Клиент опрашивает текущий статус заявки. 
+        При указании параметра timeout сервер удерживает соединение до изменения статуса 
+        или истечения указанного времени (механизм long-polling).
+      operationId: getApplicationStatus
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Уникальный идентификатор заявки
+        - name: timeout
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 30
+            default: 3
+          description: |
+            Таймаут ожидания в секундах. Сервер не вернёт ответ, 
+            пока статус не изменится или не истечёт время.
+      responses:
+        '200':
+          description: Статус успешно получен или изменился
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '304':
+          description: Статус не изменился за время ожидания. Повторите запрос.
+          headers:
+            Retry-After:
+              description: Рекомендуемый интервал до следующего запроса в секундах
+              schema:
+                type: integer
+                example: 3
+        '404':
+          description: Заявка с указанным ID не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: >
+            Заявка находится в финальном статусе (APPROVED или REJECTED).
+            Процесс обработки завершён, дальнейший опрос не требуется.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера. Повторите запрос через интервал.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '504':
+          description: Превышен лимит ожидания шлюза (Gateway Timeout). Переподключитесь или обновите страницу.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          
+  /admin/applications/{applicationId}/retry:
+    post:
+      tags: [Mortgage]
+      summary: Инициирование повторного запроса в БКИ (ручной режим)
+      description: |
+        Менеджер инициирует повторный запрос в бюро кредитных историй для заявки со статусом BKI_RETRY_NEEDED.
+        Сервер проверяет текущий статус и блокирует операцию для терминальных или активных состояний.
+      operationId: retryBkiCheck
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Уникальный идентификатор заявки
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+            example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          description: Ключ идемпотентности для защиты от повторных нажатий кнопки в UI
+      responses:
+        '202':
+          description: Задача на повторный запрос в БКИ принята в обработку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Ошибка валидации запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Заявка с указанным ID не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Операция недоступна. Повторный запрос возможен только для статуса BKI_RETRY_NEEDED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Превышен лимит запросов администратора
+          headers:
+            Retry-After:
+              description: Секунд до следующей попытки
+              schema:
+                type: integer
+                example: 30
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен или превышен лимит ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ApplicationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - desiredAmount
+        - termMonths
+        - monthlyIncome
+        - propertyAddress
+        - documentId
+      properties:
+        desiredAmount:
+          type: integer
+          minimum: 500000
+          maximum: 50000000
+          example: 5000000
+          description: Желаемая сумма кредита в рублях
+        termMonths:
+          type: integer
+          minimum: 12
+          maximum: 360
+          example: 120
+          description: Срок в месяцах
+        monthlyIncome:
+          type: integer
+          minimum: 0
+          example: 75500
+          description: Ежемесячный доход
+        propertyAddress:
+          type: string
+          maxLength: 255
+          example: "г. Москва, ул. Некрасова, д. 5, кв. 45"
+          description: Адрес объекта недвижимости
+        documentId:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+          description: ID загруженной справки 2-НДФЛ
+    ApplicationStatus:
+      type: string
+      enum:
+        - RECEIVED
+        - PROCESSING
+        - BKI_RETRY_NEEDED
+        - MANUAL_REVIEW
+        - APPROVED
+        - REJECTED
+      example: RECEIVED
+      description: Текущий статус ипотечной заявки
+    ApplicationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - applicationId
+        - status
+        - createdAt
+        - _links
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+          description: Уникальный идентификатор заявки
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-05-15T10:30:00Z"
+          description: Дата и время регистрации заявки
+        _links:
+          type: object
+          additionalProperties: false
+          properties:
+            self:
+              type: string
+              format: uri
+              example: "/applications/123e4567-e89b-12d3-a456-426614174000"
+              description: URI для получения полного ресурса заявки
+            status:
+              type: string
+              format: uri
+              example: "/applications/123e4567-e89b-12d3-a456-426614174000/status"
+              description: URI для polling текущего статуса
+              
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - timestamp
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z_]+$"
+          example: "VALIDATION_ERROR"
+          description: Уникальный машинный код ошибки (заглавные латинские буквы и _)
+        message:
+          type: string
+          maxLength: 255
+          example: "Поле monthlyIncome должно быть больше или равно 0"
+          description: Человекочитаемое описание ошибки
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              field:
+                type: string
+                example: "monthlyIncome"
+              reason:
+                type: string
+                example: "must be greater than or equal to 0"
+          description: Список полей, не прошедших серверную валидацию (опционально)
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-05-15T14:22:01Z"
+          description: Время возникновения ошибки в формате ISO 8601
