@@ -7,8 +7,9 @@ info:
 tags:
   - name: Mortgage
     description: Ипотечные заявки
+
 security:
-  - EsiAuth: [openid, fullname, email, phone, snils]
+  - BearerAuth: []
 
 paths:
   /applications:
@@ -165,8 +166,159 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    /applications/{applicationId}:
-    
+
+  /applications/{applicationId}:
+    get:
+      tags: [Mortgage]
+      summary: Получение деталей заявки
+      description: Возвращает полную информацию о заявке по её ID
+      operationId: getApplicationById
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Уникальный идентификатор заявки
+      responses:
+        '200':
+          description: Детали заявки успешно получены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Доступ запрещён (заявка принадлежит другому пользователю)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Заявка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Mortgage]
+      summary: Частичное изменение заявки
+      description: |
+        Пользователь может изменить параметры заявки, пока она не перешла в финальный статус (APPROVED или REJECTED).
+        Изменение возможно для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED.
+        После изменения заявка возвращается в статус RECEIVED для повторной обработки.
+      operationId: patchApplication
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Уникальный идентификатор заявки
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Ключ идемпотентности для защиты от повторных изменений
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                desiredAmount:
+                  type: integer
+                  minimum: 500000
+                  maximum: 50000000
+                  description: Желаемая сумма кредита в рублях
+                termMonths:
+                  type: integer
+                  minimum: 12
+                  maximum: 360
+                  description: Срок в месяцах
+                monthlyIncome:
+                  type: integer
+                  minimum: 15000
+                  description: Ежемесячный доход в рублях
+                propertyAddress:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: Адрес объекта недвижимости
+              minProperties: 1
+      responses:
+        '200':
+          description: Заявка успешно изменена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          description: Ошибка валидации (ни одно поле не указано или неверный формат)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Доступ запрещён (заявка принадлежит другому пользователю)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Заявка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Изменение невозможно. Заявка уже в финальном статусе (APPROVED или REJECTED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Превышен лимит запросов
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     delete:
       tags: [Mortgage]
       summary: Отмена заявки
@@ -227,13 +379,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-          
+
   /admin/applications/{applicationId}/retry:
     post:
       tags: [Mortgage]
       summary: Инициирование повторного запроса в БКИ (ручной режим)
       security:
-        - AdminBasicAuth: []
+        - BearerAuth: []
       description: |
         Менеджер инициирует повторный запрос в бюро кредитных историй для заявки со статусом BKI_RETRY_NEEDED.
         Сервер проверяет текущий статус и блокирует операцию для терминальных или активных состояний.
@@ -263,6 +415,18 @@ paths:
                 $ref: '#/components/schemas/ApplicationResponse'
         '400':
           description: Ошибка валидации запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Недостаточно прав (требуются права менеджера)
           content:
             application/json:
               schema:
@@ -338,7 +502,7 @@ components:
           type: integer
           minimum: 15000
           example: 75500
-          description: Ежемесячный доход
+          description: Ежемесячный доход в рублях
         propertyAddress:
           type: string
           minLength: 1
@@ -350,6 +514,7 @@ components:
           format: uuid
           example: "123e4567-e89b-12d3-a456-426614174000"
           description: ID загруженной справки 2-НДФЛ
+
     ApplicationStatus:
       type: string
       enum:
@@ -361,6 +526,7 @@ components:
         - REJECTED
       example: RECEIVED
       description: Текущий статус ипотечной заявки
+
     ApplicationResponse:
       type: object
       additionalProperties: false
@@ -422,7 +588,19 @@ components:
                   type: string
                   example: "DELETE"
               description: Отмена заявки
-              
+            edit:
+              type: object
+              additionalProperties: false
+              properties:
+                href:
+                  type: string
+                  format: uri
+                  example: "/applications/123e4567-e89b-12d3-a456-426614174000"
+                method:
+                  type: string
+                  example: "PATCH"
+              description: Частичное изменение заявки
+
     Error:
       type: object
       additionalProperties: false
@@ -435,11 +613,11 @@ components:
           type: string
           pattern: "^[A-Z_]+$"
           example: "VALIDATION_ERROR"
-          description: Уникальный машинный код ошибки (заглавные латинские буквы и _)
+          description: Уникальный машинный код ошибки
         message:
           type: string
           maxLength: 255
-          example: "Поле monthlyIncome должно быть больше или равно 0"
+          example: "Поле monthlyIncome должно быть больше или равно 15000"
           description: Человекочитаемое описание ошибки
         details:
           type: array
@@ -452,32 +630,16 @@ components:
                 example: "monthlyIncome"
               reason:
                 type: string
-                example: "must be greater than or equal to 0"
-          description: Список полей, не прошедших серверную валидацию (опционально)
+                example: "должно быть больше или равно 15000"
+          description: Список полей, не прошедших валидацию
         timestamp:
           type: string
           format: date-time
           example: "2024-05-15T14:22:01Z"
-          description: Время возникновения ошибки в формате ISO 8601
-          
+          description: Время возникновения ошибки
 
   securitySchemes:
-    EsiAuth:
-      type: oauth2
-      description: Аутентификация через ЕСИА (Госуслуги)
-      flows:
-        authorizationCode:
-          authorizationUrl: https://esia.gosuslugi.ru/aas/oauth2/ac
-          tokenUrl: https://esia.gosuslugi.ru/aas/oauth2/te
-          refreshUrl: https://esia.gosuslugi.ru/aas/oauth2/rt
-          scopes:
-            openid: Базовая информация о пользователе
-            fullname: ФИО
-            email: Адрес электронной почты
-            phone: Номер телефона
-            snils: СНИЛС
-    
-    AdminBasicAuth:
+    BearerAuth:
       type: http
-      scheme: basic
-      description: Базовая аутентификация для менеджеров (логин/пароль)
+      scheme: bearer
+      description: JWT-токен, полученный после авторизации через ЕСИА на API Gateway

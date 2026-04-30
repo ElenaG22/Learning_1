@@ -121,7 +121,7 @@ components:
             example: 120
           monthlyIncome:
             type: integer
-            minimum: 0
+            minimum: 15000
             description: Ежемесячный доход заёмщика в рублях
             example: 75500
           propertyAddress:
