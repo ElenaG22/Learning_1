@@ -1,0 +1,150 @@
+asyncapi: 3.0.0
+info:
+  title: Mortgage Service Kafka API
+  version: 1.0.0
+  description: |
+    Асинхронное взаимодействие Mortgage Service через Kafka.
+    
+    **Потоки:**
+    - Mortgage Service (HTTP) → Worker: новая заявка для обработки (new-applications)
+    - Mortgage Service (HTTP) → Worker: задача повторного запроса в БКИ (bki-retry-tasks)
+
+servers:
+  kafka:
+    host: localhost:9092
+    protocol: kafka
+    description: Apache Kafka брокер
+
+channels:
+  new-applications:
+    address: new-applications
+    messages:
+      applicationCreated:
+        $ref: '#/components/messages/ApplicationCreated'
+    description: |
+      Топик для новых ипотечных заявок.
+      Публикуется после сохранения заявки в БД.
+      Worker забирает и начинает обработку.
+
+  bki-retry-tasks:
+    address: bki-retry-tasks
+    messages:
+      bkiRetryTask:
+        $ref: '#/components/messages/BkiRetryTask'
+    description: |
+      Топик для задач повторного запроса в БКИ.
+      Публикуется когда заявка переходит в статус BKI_RETRY_NEEDED.
+      Worker обновляет статус в БД для отображения в дашборде менеджера.
+
+operations:
+  publishApplicationCreated:
+    action: send
+    channel:
+      $ref: '#/channels/new-applications'
+    messages:
+      - $ref: '#/channels/new-applications/messages/applicationCreated'
+    summary: Публикация новой заявки
+    description: |
+      HTTP сервер публикует → Worker подписывается.
+      Содержит все данные заявки для фоновой обработки.
+
+  publishBkiRetryTask:
+    action: send
+    channel:
+      $ref: '#/channels/bki-retry-tasks'
+    messages:
+      - $ref: '#/channels/bki-retry-tasks/messages/bkiRetryTask'
+    summary: Публикация задачи повторного запроса в БКИ
+    description: |
+      HTTP сервер публикует → Worker подписывается.
+      Содержит ID заявки и номер попытки.
+
+components:
+  messages:
+    ApplicationCreated:
+      name: applicationCreated
+      title: Создана новая ипотечная заявка
+      contentType: application/json
+      summary: |
+        Публикуется после успешного сохранения заявки в БД.
+        Worker забирает и начинает обработку: запрос в БКИ, скоринг, принятие решения.
+      payload:
+        type: object
+        required:
+          - applicationId
+          - desiredAmount
+          - termMonths
+          - monthlyIncome
+          - propertyAddress
+          - documentId
+          - createdAt
+        properties:
+          applicationId:
+            type: string
+            format: uuid
+            description: Уникальный идентификатор заявки
+            example: "123e4567-e89b-12d3-a456-426614174000"
+          desiredAmount:
+            type: integer
+            minimum: 500000
+            maximum: 50000000
+            description: Желаемая сумма кредита в рублях
+            example: 5000000
+          termMonths:
+            type: integer
+            minimum: 12
+            maximum: 360
+            description: Срок кредита в месяцах
+            example: 120
+          monthlyIncome:
+            type: integer
+            minimum: 0
+            description: Ежемесячный доход заёмщика в рублях
+            example: 75500
+          propertyAddress:
+            type: string
+            maxLength: 255
+            description: Адрес объекта недвижимости
+            example: "г. Москва, ул. Некрасова, д. 5, кв. 45"
+          documentId:
+            type: string
+            format: uuid
+            description: ID загруженной справки 2-НДФЛ
+            example: "123e4567-e89b-12d3-a456-426614174001"
+          createdAt:
+            type: string
+            format: date-time
+            description: Дата и время создания заявки
+            example: "2024-05-15T10:30:00Z"
+
+    BkiRetryTask:
+      name: bkiRetryTask
+      title: Задача повторного запроса в БКИ
+      contentType: application/json
+      summary: |
+        Публикуется когда заявка переходит в статус BKI_RETRY_NEEDED.
+        Счётчик попыток увеличивается при каждом неудачном запросе.
+        Лимит = 3, после чего заявка переходит в MANUAL_REVIEW.
+      payload:
+        type: object
+        required:
+          - applicationId
+          - retryCount
+          - createdAt
+        properties:
+          applicationId:
+            type: string
+            format: uuid
+            description: Уникальный идентификатор заявки
+            example: "123e4567-e89b-12d3-a456-426614174000"
+          retryCount:
+            type: integer
+            minimum: 1
+            maximum: 3
+            description: Номер попытки (1, 2, 3). При retryCount = 3 и неудаче → MANUAL_REVIEW
+            example: 1
+          createdAt:
+            type: string
+            format: date-time
+            description: Дата и время создания задачи
+            example: "2024-05-15T10:35:00Z"
