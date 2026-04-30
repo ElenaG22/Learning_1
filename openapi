@@ -279,6 +279,7 @@ components:
           description: Ежемесячный доход
         propertyAddress:
           type: string
+          minLength: 1
           maxLength: 255
           example: "г. Москва, ул. Некрасова, д. 5, кв. 45"
           description: Адрес объекта недвижимости
