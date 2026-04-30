@@ -59,6 +59,28 @@ operations:
       HTTP сервер публикует → Worker подписывается.
       Содержит ID заявки и номер попытки.
 
+  receiveApplicationCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/new-applications'
+    messages:
+      - $ref: '#/channels/new-applications/messages/applicationCreated'
+    summary: Получение новой заявки Worker'ом
+    description: |
+      Worker подписывается на топик new-applications.
+      Получает события о новых заявках и запускает процесс обработки.
+
+  receiveBkiRetryTask:
+    action: receive
+    channel:
+      $ref: '#/channels/bki-retry-tasks'
+    messages:
+      - $ref: '#/channels/bki-retry-tasks/messages/bkiRetryTask'
+    summary: Получение задачи повторного запроса Worker'ом
+    description: |
+      Worker подписывается на топик bki-retry-tasks.
+      Получает задачи для повторного запроса в БКИ и обновляет статус в БД.
+
 components:
   messages:
     ApplicationCreated:
@@ -70,6 +92,7 @@ components:
         Worker забирает и начинает обработку: запрос в БКИ, скоринг, принятие решения.
       payload:
         type: object
+        additionalProperties: false 
         required:
           - applicationId
           - desiredAmount
@@ -127,6 +150,7 @@ components:
         Лимит = 3, после чего заявка переходит в MANUAL_REVIEW.
       payload:
         type: object
+        additionalProperties: false 
         required:
           - applicationId
           - retryCount

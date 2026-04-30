@@ -165,6 +165,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    /applications/{applicationId}:
+    
+    delete:
+      tags: [Mortgage]
+      summary: Отмена заявки
+      description: |
+        Пользователь может отменить заявку, пока она не перешла в финальный статус (APPROVED или REJECTED).
+        Отмена возможна только для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED.
+        После отмены дальнейшая обработка прекращается.
+      operationId: cancelApplication
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Уникальный идентификатор заявки
+      responses:
+        '204':
+          description: Заявка успешно отменена
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Доступ запрещён (заявка принадлежит другому пользователю)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Заявка с указанным ID не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Отмена невозможна. Заявка уже в финальном статусе (APPROVED или REJECTED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Превышен лимит запросов
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
           
   /admin/applications/{applicationId}/retry:
     post:
@@ -274,7 +336,7 @@ components:
           description: Срок в месяцах
         monthlyIncome:
           type: integer
-          minimum: 0
+          minimum: 15000
           example: 75500
           description: Ежемесячный доход
         propertyAddress:
@@ -325,15 +387,41 @@ components:
           additionalProperties: false
           properties:
             self:
-              type: string
-              format: uri
-              example: "/applications/123e4567-e89b-12d3-a456-426614174000"
-              description: URI для получения полного ресурса заявки
+              type: object
+              additionalProperties: false
+              properties:
+                href:
+                  type: string
+                  format: uri
+                  example: "/applications/123e4567-e89b-12d3-a456-426614174000"
+                method:
+                  type: string
+                  example: "GET"
+              description: Получение деталей заявки
             status:
-              type: string
-              format: uri
-              example: "/applications/123e4567-e89b-12d3-a456-426614174000/status"
-              description: URI для polling текущего статуса
+              type: object
+              additionalProperties: false
+              properties:
+                href:
+                  type: string
+                  format: uri
+                  example: "/applications/123e4567-e89b-12d3-a456-426614174000/status"
+                method:
+                  type: string
+                  example: "GET"
+              description: Получение статуса заявки (polling)
+            cancel:
+              type: object
+              additionalProperties: false
+              properties:
+                href:
+                  type: string
+                  format: uri
+                  example: "/applications/123e4567-e89b-12d3-a456-426614174000"
+                method:
+                  type: string
+                  example: "DELETE"
+              description: Отмена заявки
               
     Error:
       type: object
