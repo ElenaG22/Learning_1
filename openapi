@@ -23,7 +23,7 @@ paths:
       parameters:
         - name: Idempotency-Key
           in: header
-          required: false
+          required: true
           schema:
             type: string
             format: uuid
@@ -231,7 +231,7 @@ paths:
           description: Уникальный идентификатор заявки
         - name: Idempotency-Key
           in: header
-          required: false
+          required: true
           schema:
             type: string
             format: uuid
@@ -400,7 +400,7 @@ paths:
           description: Уникальный идентификатор заявки
         - name: Idempotency-Key
           in: header
-          required: false
+          required: true
           schema:
             type: string
             format: uuid
@@ -526,6 +526,22 @@ components:
         - REJECTED
       example: RECEIVED
       description: Текущий статус ипотечной заявки
+    
+    Link:
+      type: object
+      additionalProperties: false
+      required:
+        - href
+        - method
+      properties:
+        href:
+          type: string
+          format: uri
+          minLength: 1
+          maxLength: 500
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
 
     ApplicationResponse:
       type: object
@@ -549,57 +565,21 @@ components:
           example: "2024-05-15T10:30:00Z"
           description: Дата и время регистрации заявки
         _links:
-          type: object
-          additionalProperties: false
-          properties:
-            self:
-              type: object
-              additionalProperties: false
-              properties:
-                href:
-                  type: string
-                  format: uri
-                  example: "/applications/123e4567-e89b-12d3-a456-426614174000"
-                method:
-                  type: string
-                  example: "GET"
-              description: Получение деталей заявки
-            status:
-              type: object
-              additionalProperties: false
-              properties:
-                href:
-                  type: string
-                  format: uri
-                  example: "/applications/123e4567-e89b-12d3-a456-426614174000/status"
-                method:
-                  type: string
-                  example: "GET"
-              description: Получение статуса заявки (polling)
-            cancel:
-              type: object
-              additionalProperties: false
-              properties:
-                href:
-                  type: string
-                  format: uri
-                  example: "/applications/123e4567-e89b-12d3-a456-426614174000"
-                method:
-                  type: string
-                  example: "DELETE"
-              description: Отмена заявки
-            edit:
-              type: object
-              additionalProperties: false
-              properties:
-                href:
-                  type: string
-                  format: uri
-                  example: "/applications/123e4567-e89b-12d3-a456-426614174000"
-                method:
-                  type: string
-                  example: "PATCH"
-              description: Частичное изменение заявки
+           type: object
+           additionalProperties: false
+           properties:
+             self:
+               $ref: '#/components/schemas/Link'
+               description: Получение деталей заявки
+             status:
+               $ref: '#/components/schemas/Link'
+               description: Получение статуса заявки (polling)
+             cancel:
+               $ref: '#/components/schemas/Link'
+               description: Отмена заявки
+             edit:
+               $ref: '#/components/schemas/Link'
+               description: Частичное изменение заявки
 
     Error:
       type: object
