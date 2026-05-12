@@ -119,7 +119,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApplicationResponse'
+                $ref: '#/components/schemas/ApplicationStatusResponse'
         '304':
           description: Статус не изменился за время ожидания. Повторите запрос.
           headers:
@@ -551,6 +551,11 @@ components:
         - status
         - createdAt
         - _links
+      description: |
+        HATEOAS-ссылки для навигации.
+        Поля cancel и edit присутствуют ТОЛЬКО для статусов: 
+        RECEIVED, PROCESSING, BKI_RETRY_NEEDED.
+        Отсутствуют для статусов: MANUAL_REVIEW, APPROVED, REJECTED.
       properties:
         applicationId:
           type: string
@@ -580,6 +585,26 @@ components:
              edit:
                $ref: '#/components/schemas/Link'
                description: Частичное изменение заявки
+    ApplicationStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - applicationId
+        - status
+        - createdAt
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+          description: Уникальный идентификатор заявки
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-05-15T10:30:00Z" 
+          description: Дата и время регистрации заявки
 
     Error:
       type: object
