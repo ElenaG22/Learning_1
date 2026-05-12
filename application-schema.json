@@ -1,70 +1,183 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["applicationId", "status", "createdAt", "_links"],
-  "properties": {
-    "applicationId": {
-      "type": "string",
-      "format": "uuid",
-      "description": "Уникальный идентификатор заявки",
-      "example": "123e4567-e89b-12d3-a456-426614174000"
-    },
-    "status": {
+  "definitions": {
+    "ApplicationStatus": {
       "type": "string",
       "enum": ["RECEIVED", "PROCESSING", "BKI_RETRY_NEEDED", "MANUAL_REVIEW", "APPROVED", "REJECTED"],
-      "description": "Текущий статус заявки",
+      "description": "Текущий статус ипотечной заявки",
       "example": "RECEIVED"
     },
-    "createdAt": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Дата и время создания заявки",
-      "example": "2025-01-12T10:30:00Z"
-    },
-    "_links": {
+    "Link": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["self", "status"],
-      "description": "HATEOAS ссылки для навигации. Наличие cancel/edit зависит от статуса заявки",
+      "required": ["href", "method"],
       "properties": {
-        "self": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["href", "method"],
-          "properties": {
-            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000" },
-            "method": { "type": "string", "enum": ["GET"], "example": "GET" }
-          }
+        "href": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "URI ресурса",
+          "example": "/applications/123e4567-e89b-12d3-a456-426614174000"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+          "description": "HTTP метод",
+          "example": "GET"
+        }
+      }
+    },
+    "ApplicationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["desiredAmount", "termMonths", "monthlyIncome", "propertyAddress", "documentId"],
+      "properties": {
+        "desiredAmount": {
+          "type": "integer",
+          "minimum": 500000,
+          "maximum": 50000000,
+          "example": 5000000,
+          "description": "Желаемая сумма кредита в рублях"
+        },
+        "termMonths": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 360,
+          "example": 120,
+          "description": "Срок в месяцах"
+        },
+        "monthlyIncome": {
+          "type": "integer",
+          "minimum": 15000,
+          "example": 75500,
+          "description": "Ежемесячный доход в рублях"
+        },
+        "propertyAddress": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "example": "г. Москва, ул. Некрасова, д. 5, кв. 45",
+          "description": "Адрес объекта недвижимости"
+        },
+        "documentId": {
+          "type": "string",
+          "format": "uuid",
+          "example": "123e4567-e89b-12d3-a456-426614174000",
+          "description": "ID загруженной справки 2-НДФЛ"
+        }
+      }
+    },
+    "ApplicationResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicationId", "status", "createdAt", "_links"],
+      "description": "HATEOAS-ссылки для навигации. Поля cancel и edit присутствуют ТОЛЬКО для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED. Отсутствуют для статусов: MANUAL_REVIEW, APPROVED, REJECTED.",
+      "properties": {
+        "applicationId": {
+          "type": "string",
+          "format": "uuid",
+          "example": "123e4567-e89b-12d3-a456-426614174000",
+          "description": "Уникальный идентификатор заявки"
         },
         "status": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["href", "method"],
-          "properties": {
-            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000/status?timeout=5" },
-            "method": { "type": "string", "enum": ["GET"], "example": "GET" }
-          }
+          "$ref": "#/definitions/ApplicationStatus"
         },
-        "cancel": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["href", "method"],
-          "description": "Присутствует для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED. Отсутствует для MANUAL_REVIEW, APPROVED, REJECTED",
-          "properties": {
-            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000" },
-            "method": { "type": "string", "enum": ["DELETE"], "example": "DELETE" }
-          }
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2024-05-15T10:30:00Z",
+          "description": "Дата и время регистрации заявки"
         },
-        "edit": {
+        "_links": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["href", "method"],
-          "description": "Присутствует для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED. Отсутствует для MANUAL_REVIEW, APPROVED, REJECTED",
+          "required": ["self", "status"],
           "properties": {
-            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000" },
-            "method": { "type": "string", "enum": ["PATCH"], "example": "PATCH" }
+            "self": {
+              "$ref": "#/definitions/Link",
+              "description": "Получение деталей заявки"
+            },
+            "status": {
+              "$ref": "#/definitions/Link",
+              "description": "Получение статуса заявки (polling)"
+            },
+            "cancel": {
+              "$ref": "#/definitions/Link",
+              "description": "Отмена заявки"
+            },
+            "edit": {
+              "$ref": "#/definitions/Link",
+              "description": "Частичное изменение заявки"
+            }
           }
+        }
+      }
+    },
+    "ApplicationStatusResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicationId", "status", "createdAt"],
+      "properties": {
+        "applicationId": {
+          "type": "string",
+          "format": "uuid",
+          "example": "123e4567-e89b-12d3-a456-426614174000",
+          "description": "Уникальный идентификатор заявки"
+        },
+        "status": {
+          "$ref": "#/definitions/ApplicationStatus"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2024-05-15T10:30:00Z",
+          "description": "Дата и время регистрации заявки"
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "timestamp"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z_]+$",
+          "example": "VALIDATION_ERROR",
+          "description": "Уникальный машинный код ошибки"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 255,
+          "example": "Поле monthlyIncome должно быть больше или равно 15000",
+          "description": "Человекочитаемое описание ошибки"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "example": "monthlyIncome",
+                "description": "Название поля"
+              },
+              "reason": {
+                "type": "string",
+                "example": "должно быть больше или равно 15000",
+                "description": "Причина ошибки"
+              }
+            }
+          },
+          "description": "Список полей, не прошедших валидацию"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2024-05-15T14:22:01Z",
+          "description": "Время возникновения ошибки"
         }
       }
     }
