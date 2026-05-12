@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["applicationId", "status", "createdAt", "_links"],
+  "properties": {
+    "applicationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Уникальный идентификатор заявки",
+      "example": "123e4567-e89b-12d3-a456-426614174000"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["RECEIVED", "PROCESSING", "BKI_RETRY_NEEDED", "MANUAL_REVIEW", "APPROVED", "REJECTED"],
+      "description": "Текущий статус заявки",
+      "example": "RECEIVED"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Дата и время создания заявки",
+      "example": "2025-01-12T10:30:00Z"
+    },
+    "_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["self", "status"],
+      "description": "HATEOAS ссылки для навигации. Наличие cancel/edit зависит от статуса заявки",
+      "properties": {
+        "self": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["href", "method"],
+          "properties": {
+            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000" },
+            "method": { "type": "string", "enum": ["GET"], "example": "GET" }
+          }
+        },
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["href", "method"],
+          "properties": {
+            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000/status?timeout=5" },
+            "method": { "type": "string", "enum": ["GET"], "example": "GET" }
+          }
+        },
+        "cancel": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["href", "method"],
+          "description": "Присутствует для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED. Отсутствует для MANUAL_REVIEW, APPROVED, REJECTED",
+          "properties": {
+            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000" },
+            "method": { "type": "string", "enum": ["DELETE"], "example": "DELETE" }
+          }
+        },
+        "edit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["href", "method"],
+          "description": "Присутствует для статусов: RECEIVED, PROCESSING, BKI_RETRY_NEEDED. Отсутствует для MANUAL_REVIEW, APPROVED, REJECTED",
+          "properties": {
+            "href": { "type": "string", "format": "uri", "example": "/applications/123e4567-e89b-12d3-a456-426614174000" },
+            "method": { "type": "string", "enum": ["PATCH"], "example": "PATCH" }
+          }
+        }
+      }
+    }
+  }
+}
