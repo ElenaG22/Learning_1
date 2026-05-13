@@ -34,7 +34,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: './application-schema.json'
+              $ref: https://raw.githubusercontent.com/ElenaG22/Learning_1/refs/heads/main/application-schema.json
       responses:
         '202':
           description: Заявка принята в обработку
@@ -476,44 +476,6 @@ paths:
 
 components:
   schemas:
-    ApplicationRequest:
-      type: object
-      additionalProperties: false
-      required:
-        - desiredAmount
-        - termMonths
-        - monthlyIncome
-        - propertyAddress
-        - documentId
-      properties:
-        desiredAmount:
-          type: integer
-          minimum: 500000
-          maximum: 50000000
-          example: 5000000
-          description: Желаемая сумма кредита в рублях
-        termMonths:
-          type: integer
-          minimum: 12
-          maximum: 360
-          example: 120
-          description: Срок в месяцах
-        monthlyIncome:
-          type: integer
-          minimum: 15000
-          example: 75500
-          description: Ежемесячный доход в рублях
-        propertyAddress:
-          type: string
-          minLength: 1
-          maxLength: 255
-          example: "г. Москва, ул. Некрасова, д. 5, кв. 45"
-          description: Адрес объекта недвижимости
-        documentId:
-          type: string
-          format: uuid
-          example: "123e4567-e89b-12d3-a456-426614174000"
-          description: ID загруженной справки 2-НДФЛ
 
     ApplicationStatus:
       type: string
