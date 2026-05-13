@@ -34,7 +34,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApplicationRequest'
+              $ref: './application-schema.json'
       responses:
         '202':
           description: Заявка принята в обработку
