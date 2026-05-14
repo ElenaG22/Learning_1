@@ -1,5 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Application Request Schema",
+  "description": "Схема для валидации POST-запроса при создании ипотечной заявки. Используется для проверки тела запроса к эндпоинту POST /applications.",
   "type": "object",
   "additionalProperties": false,
   "required": ["desiredAmount", "termMonths", "monthlyIncome", "propertyAddress", "documentId"],
