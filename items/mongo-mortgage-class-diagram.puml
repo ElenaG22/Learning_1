@@ -1,0 +1,99 @@
+@startuml
+title MongoDB Class Diagram — Mortgage Deal Management Service
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+class MortgageDealDocument <<collection>> {
+  _id: UUID
+  dealNumber: String
+  applicationDate: DateTime
+  status: DealStatus
+  requestedAmount: Integer
+  termMonths: Integer
+  createdAt: DateTime
+  updatedAt: DateTime [0..1]
+}
+
+class ClientSnapshot {
+  clientId: UUID
+  lastName: String
+  firstName: String
+  middleName: String [0..1]
+  passport: String
+  phone: String
+  email: String
+  birthDate: Date
+  monthlyIncome: Integer
+  incomeProofType: IncomeProofType
+}
+
+class PropertySnapshot {
+  propertyId: UUID
+  address: String
+  cadastralNumber: String
+  appraisedValue: Integer
+}
+
+class PropertyTypeSnapshot {
+  propertyTypeId: UUID
+  name: String
+}
+
+class BankEmployeeSnapshot {
+  employeeId: UUID
+  fullName: String
+  position: String
+  internalCode: String
+}
+
+class LoanAgreement {
+  agreementNumber: String
+  agreementDate: Date
+  endDate: Date
+  interestRate: Decimal
+  loanAmount: Integer
+  monthlyPayment: Integer
+  createdAt: DateTime
+  updatedAt: DateTime [0..1]
+}
+
+enum DealStatus {
+  draft
+  under_review
+  approved
+  rejected
+  closed
+}
+
+enum IncomeProofType {
+  TWO_NDFL
+  BANK_FORM_CERTIFICATE
+  DECLARATION
+  ACCOUNT_STATEMENT
+}
+
+MortgageDealDocument *-- "1" ClientSnapshot : client
+MortgageDealDocument *-- "1" PropertySnapshot : property
+MortgageDealDocument *-- "1" BankEmployeeSnapshot : bankEmployee
+MortgageDealDocument *-- "0..1" LoanAgreement : loanAgreement
+
+PropertySnapshot *-- "1" PropertyTypeSnapshot : propertyType
+
+MortgageDealDocument --> DealStatus : status
+ClientSnapshot --> IncomeProofType : incomeProofType
+
+note right of IncomeProofType
+TWO_NDFL = "2-НДФЛ"
+BANK_FORM_CERTIFICATE = "справка по форме банка"
+DECLARATION = "декларация"
+ACCOUNT_STATEMENT = "выписка по счёту"
+end note
+
+note bottom of LoanAgreement
+loanAgreement может отсутствовать,
+пока кредитный договор не создан.
+Поэтому кратность связи — 0..1.
+end note
+
+@enduml
