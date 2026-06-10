@@ -5,10 +5,10 @@ skinparam classAttributeIconSize 0
 skinparam linetype ortho
 
 class MortgageDealDocument <<collection>> {
-  _id: UUID
+  _id: String
   dealNumber: String
   applicationDate: DateTime
-  status: DealStatus
+  status: String
   requestedAmount: Integer
   termMonths: Integer
   createdAt: DateTime
@@ -25,7 +25,7 @@ class ClientSnapshot {
   email: String
   birthDate: Date
   monthlyIncome: Integer
-  incomeProofType: IncomeProofType
+  incomeProofType: String
 }
 
 class PropertySnapshot {
@@ -58,21 +58,6 @@ class LoanAgreement {
   updatedAt: DateTime [0..1]
 }
 
-enum DealStatus {
-  draft
-  under_review
-  approved
-  rejected
-  closed
-}
-
-enum IncomeProofType {
-  TWO_NDFL
-  BANK_FORM_CERTIFICATE
-  DECLARATION
-  ACCOUNT_STATEMENT
-}
-
 MortgageDealDocument *-- "1" ClientSnapshot : client
 MortgageDealDocument *-- "1" PropertySnapshot : property
 MortgageDealDocument *-- "1" BankEmployeeSnapshot : bankEmployee
@@ -80,14 +65,17 @@ MortgageDealDocument *-- "0..1" LoanAgreement : loanAgreement
 
 PropertySnapshot *-- "1" PropertyTypeSnapshot : propertyType
 
-MortgageDealDocument --> DealStatus : status
-ClientSnapshot --> IncomeProofType : incomeProofType
+note right of MortgageDealDocument
+status хранится как строковое значение.
+Допустимые значения:
+draft, under_review, approved, rejected, closed.
+end note
 
-note right of IncomeProofType
-TWO_NDFL = "2-НДФЛ"
-BANK_FORM_CERTIFICATE = "справка по форме банка"
-DECLARATION = "декларация"
-ACCOUNT_STATEMENT = "выписка по счёту"
+note right of ClientSnapshot
+incomeProofType хранится как строковое значение.
+Допустимые значения:
+TWO_NDFL, BANK_CERTIFICATE,
+DECLARATION, ACCOUNT_STATEMENT.
 end note
 
 note bottom of LoanAgreement
