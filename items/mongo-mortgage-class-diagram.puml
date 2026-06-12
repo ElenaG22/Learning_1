@@ -5,64 +5,71 @@ skinparam classAttributeIconSize 0
 skinparam linetype ortho
 
 class MortgageDealDocument <<collection>> {
-  _id: String
-  dealNumber: String
-  applicationDate: DateTime
-  status: String
-  requestedAmount: Integer
-  termMonths: Integer
-  createdAt: DateTime
-  updatedAt: DateTime [0..1]
+_id: String
+dealNumber: String
+applicationDate: DateTime
+status: String
+requestedAmount: Decimal
+termMonths: Integer
+updatedAt: DateTime [0..1]
 }
 
 class ClientSnapshot {
-  clientId: UUID
-  lastName: String
-  firstName: String
-  middleName: String [0..1]
-  passport: String
-  phone: String
-  email: String
-  birthDate: Date
-  monthlyIncome: Integer
-  incomeProofType: String
+clientId: UUID
+lastName: String
+firstName: String
+middleName: String [0..1]
+passport: String
+phone: String
+email: String
+birthDate: Date
+monthlyIncome: Decimal
+incomeProofType: String
+}
+
+class MortgageDealPropertySnapshot {
+pledgeStatus: String
+pledgeValue: Decimal
+pledgeStartDate: Date [0..1]
+pledgeEndDate: Date [0..1]
+updatedAt: DateTime [0..1]
 }
 
 class PropertySnapshot {
-  propertyId: UUID
-  address: String
-  cadastralNumber: String
-  appraisedValue: Integer
+propertyId: UUID
+address: String
+cadastralNumber: String
+appraisedValue: Decimal
 }
 
 class PropertyTypeSnapshot {
-  propertyTypeId: UUID
-  name: String
+propertyTypeId: UUID
+name: String
 }
 
 class BankEmployeeSnapshot {
-  employeeId: UUID
-  fullName: String
-  position: String
-  internalCode: String
+employeeId: UUID
+fullName: String
+position: String
+internalCode: String
 }
 
 class LoanAgreement {
-  agreementNumber: String
-  agreementDate: Date
-  endDate: Date
-  interestRate: Decimal
-  loanAmount: Integer
-  monthlyPayment: Integer
-  createdAt: DateTime
-  updatedAt: DateTime [0..1]
+agreementNumber: String
+agreementDate: Date
+endDate: Date
+interestRate: Decimal
+loanAmount: Decimal
+monthlyPayment: Decimal
+updatedAt: DateTime [0..1]
 }
 
 MortgageDealDocument *-- "1" ClientSnapshot : client
-MortgageDealDocument *-- "1" PropertySnapshot : property
 MortgageDealDocument *-- "1" BankEmployeeSnapshot : bankEmployee
+MortgageDealDocument *-- "1..*" MortgageDealPropertySnapshot : properties
 MortgageDealDocument *-- "0..1" LoanAgreement : loanAgreement
 
+MortgageDealPropertySnapshot *-- "1" PropertySnapshot : property
 PropertySnapshot *-- "1" PropertyTypeSnapshot : propertyType
 
 note right of MortgageDealDocument
@@ -76,6 +83,15 @@ incomeProofType хранится как строковое значение.
 Допустимые значения:
 TWO_NDFL, BANK_CERTIFICATE,
 DECLARATION, ACCOUNT_STATEMENT.
+end note
+
+note right of MortgageDealPropertySnapshot
+pledgeStatus хранится как строковое значение.
+Допустимые значения:
+planned, active, released.
+
+Один документ сделки может содержать
+несколько объектов недвижимости.
 end note
 
 note bottom of LoanAgreement
