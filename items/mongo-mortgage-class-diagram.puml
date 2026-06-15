@@ -12,6 +12,11 @@ status: String
 requestedAmount: Decimal
 termMonths: Integer
 updatedAt: DateTime [0..1]
+
+client: ClientSnapshot
+properties: MortgageDealPropertySnapshot[]
+bankEmployee: BankEmployeeSnapshot
+loanAgreement: LoanAgreement [0..1]
 }
 
 class ClientSnapshot {
@@ -33,6 +38,8 @@ pledgeValue: Decimal
 pledgeStartDate: Date [0..1]
 pledgeEndDate: Date [0..1]
 updatedAt: DateTime [0..1]
+
+property: PropertySnapshot
 }
 
 class PropertySnapshot {
@@ -40,6 +47,8 @@ propertyId: UUID
 address: String
 cadastralNumber: String
 appraisedValue: Decimal
+
+propertyType: PropertyTypeSnapshot
 }
 
 class PropertyTypeSnapshot {
@@ -65,39 +74,11 @@ updatedAt: DateTime [0..1]
 }
 
 MortgageDealDocument *-- "1" ClientSnapshot : client
-MortgageDealDocument *-- "1" BankEmployeeSnapshot : bankEmployee
 MortgageDealDocument *-- "1..*" MortgageDealPropertySnapshot : properties
+MortgageDealDocument *-- "1" BankEmployeeSnapshot : bankEmployee
 MortgageDealDocument *-- "0..1" LoanAgreement : loanAgreement
 
 MortgageDealPropertySnapshot *-- "1" PropertySnapshot : property
 PropertySnapshot *-- "1" PropertyTypeSnapshot : propertyType
-
-note right of MortgageDealDocument
-status хранится как строковое значение.
-Допустимые значения:
-draft, under_review, approved, rejected, closed.
-end note
-
-note right of ClientSnapshot
-incomeProofType хранится как строковое значение.
-Допустимые значения:
-TWO_NDFL, BANK_CERTIFICATE,
-DECLARATION, ACCOUNT_STATEMENT.
-end note
-
-note right of MortgageDealPropertySnapshot
-pledgeStatus хранится как строковое значение.
-Допустимые значения:
-planned, active, released.
-
-Один документ сделки может содержать
-несколько объектов недвижимости.
-end note
-
-note bottom of LoanAgreement
-loanAgreement может отсутствовать,
-пока кредитный договор не создан.
-Поэтому кратность связи — 0..1.
-end note
 
 @enduml
